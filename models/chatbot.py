@@ -52,7 +52,7 @@ if not os.path.exists(persist_dir) or not os.listdir(persist_dir):
     # print(f"[DEBUG] Loaded {len(pdf_path)} pages from PDF")
     loader = PyPDFLoader(pdf_path)
     docs = loader.load()
-    # print(f"[DEBUG] Loaded {len(docs)} pages from PDF")
+    print(f"[DEBUG] Loaded {len(docs)} pages from PDF")
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
@@ -88,11 +88,11 @@ class State(BaseModel):
 
 def retrieve(state: State):
     retrieved_docs = vector_store.similarity_search(state.question, k=3)#
-    # print("\n[DEBUG] Retrieved Documents:\n")
+    print("\n[DEBUG] Retrieved Documents:\n")
     
-    # for i, doc in enumerate(retrieved_docs, 1):
-    #     print(f"{i}. {doc.page_content[:300]}...\n")
-    # return {"context": retrieved_docs}
+    for i, doc in enumerate(retrieved_docs, 1):
+        print(f"{i}. {doc.page_content[:300]}...\n")
+    return {"context": retrieved_docs}
 
 def generate(state: State):
     # Detect language of the user question
