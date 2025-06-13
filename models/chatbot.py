@@ -20,26 +20,61 @@ load_dotenv()
 llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash-preview-05-20')
 embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
 
+# pdf_path = "./Features breakdown.pdf"
+# print("PDF exists:", os.path.exists(pdf_path))
+# print(f"[DEBUG] Loaded {len(pdf_path)} pages from PDF")
+# loader = PyPDFLoader(pdf_path)
+# docs = loader.load()
+# print(f"[DEBUG] Loaded {len(docs)} pages from PDF")
+# text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=1000,
+#     chunk_overlap=200,
+#     add_start_index=True,
+# )
+# all_splits = text_splitter.split_documents(docs)
+#     # ✅ DEBUG PRINT — Make sure your phrase exists
+# for i, doc in enumerate(all_splits):
+#     print(f"[Chunk {i}]:", doc.page_content[:150])  # Print first 150 chars
+
+    
 # Vector Store with persistence
 persist_dir = "./chroma_db"
-vector_store = Chroma(
-    embedding_function=embeddings,
-    persist_directory=persist_dir
-)
+# vector_store = Chroma(
+#     embedding_function=embeddings,
+#     persist_directory=persist_dir
+# )
 
 # Load documents if DB is empty
 if not os.path.exists(persist_dir) or not os.listdir(persist_dir):
-    pdf_path = "https://www.jica.go.jp/Resource/activities/issues/governance/portal/nepal/ku57pq00002khibz-att/civil_code_1st_amendment_en.pdf"
+    # pdf_path = "https://www.jica.go.jp/Resource/activities/issues/governance/portal/nepal/ku57pq00002khibz-att/civil_code_1st_amendment_en.pdf"
+    pdf_path = "./criminal-code-nepal.pdf"
+    # print("PDF exists:", os.path.exists(pdf_path))
+    # print(f"[DEBUG] Loaded {len(pdf_path)} pages from PDF")
     loader = PyPDFLoader(pdf_path)
     docs = loader.load()
+    # print(f"[DEBUG] Loaded {len(docs)} pages from PDF")
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
         add_start_index=True,
     )
     all_splits = text_splitter.split_documents(docs)
+     # ✅ DEBUG PRINT — Make sure your phrase exists
+    # for i, doc in enumerate(all_splits):
+    #     print(f"[Chunk {i}]:", doc.page_content[:150])  # Print first 150 chars
+    
+    vector_store = Chroma(
+    embedding_function=embeddings,
+    persist_directory=persist_dir
+    )
+
     vector_store.add_documents(documents=all_splits)
-    vector_store.persist()
+    # print(f"[DEBUG] Added {len(all_splits)} documents to vector store")
+
+vector_store = Chroma(
+embedding_function=embeddings,
+persist_directory=persist_dir
+)   
 
 # Pull RAG prompt
 prompt = hub.pull("rlm/rag-prompt")
@@ -52,8 +87,12 @@ class State(BaseModel):
     chat_history: List[Dict] = Field(default_factory=list)
 
 def retrieve(state: State):
-    retrieved_docs = vector_store.similarity_search(state.question, k=3)
-    return {"context": retrieved_docs}
+    retrieved_docs = vector_store.similarity_search(state.question, k=3)#
+    # print("\n[DEBUG] Retrieved Documents:\n")
+    
+    # for i, doc in enumerate(retrieved_docs, 1):
+    #     print(f"{i}. {doc.page_content[:300]}...\n")
+    # return {"context": retrieved_docs}
 
 def generate(state: State):
     # Detect language of the user question
@@ -68,9 +107,9 @@ def generate(state: State):
         )
     else:
         system_prompt = (
-            "You are a legal assistant helping users understand Nepal's Constitution. "
-            "Please respond in English and cite relevant articles or sections from the Constitution. "
-            "If you are unsure, politely say so."
+           "You are a strict legal assistant. Only use the following provided excerpts from the constitution to answer. "
+    "If the answer is not in the provided context, respond with 'I'm not sure based on the current legal documents.' "
+    "Do not use prior knowledge or make assumptions."
         )
 
     # Format chat history
@@ -90,7 +129,7 @@ def generate(state: State):
         *[
             HumanMessage(content=msg['content']) if msg['type'] == 'human'
             else AIMessage(content=msg['content'])
-            for msg in state.chat_history[-4:]
+            for msg in state.chat_history[-10:]
         ],
         HumanMessage(content=f"""Based on our conversation so far:
 {conversation_history}
