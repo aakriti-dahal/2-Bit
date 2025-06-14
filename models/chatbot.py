@@ -17,6 +17,7 @@ from gtts import gTTS
 import tempfile
 import os
 import streamlit as st
+from googletrans import Translator
 
 
 # Load environment variables
@@ -26,60 +27,48 @@ load_dotenv()
 llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash-preview-05-20')
 embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
 
-# pdf_path = "./Features breakdown.pdf"
-# print("PDF exists:", os.path.exists(pdf_path))
-# print(f"[DEBUG] Loaded {len(pdf_path)} pages from PDF")
-# loader = PyPDFLoader(pdf_path)
-# docs = loader.load()
-# print(f"[DEBUG] Loaded {len(docs)} pages from PDF")
-# text_splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=1000,
-#     chunk_overlap=200,
-#     add_start_index=True,
-# )
-# all_splits = text_splitter.split_documents(docs)
-#     # ✅ DEBUG PRINT — Make sure your phrase exists
-# for i, doc in enumerate(all_splits):
-#     print(f"[Chunk {i}]:", doc.page_content[:150])  # Print first 150 chars
-
-
 # Vector Store with persistence
 persist_dir = "./chroma_db"
-# vector_store = Chroma(
-#     embedding_function=embeddings,
-#     persist_directory=persist_dir
-# )
+pdf_paths = [
+    "./criminal-code-nepal.pdf",
+    "./Constitution-of-Nepal_2072.pdf",
+    "./civil_code_1st_amendment_en.pdf",
+    "./NP_Criminal Procedure Code_EN.pdf"
+]
 
-# Load documents if DB is empty
+# Step 1: Only process if DB doesn't exist
 if not os.path.exists(persist_dir) or not os.listdir(persist_dir):
-    # pdf_path = "https://www.jica.go.jp/Resource/activities/issues/governance/portal/nepal/ku57pq00002khibz-att/civil_code_1st_amendment_en.pdf"
-    pdf_path = "./criminal-code-nepal.pdf"
-    # print("PDF exists:", os.path.exists(pdf_path))
-    # print(f"[DEBUG] Loaded {len(pdf_path)} pages from PDF")
-    loader = PyPDFLoader(pdf_path)
-    docs = loader.load()
-    print(f"[DEBUG] Loaded {len(docs)} pages from PDF")
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        add_start_index=True,
-    )
-    all_splits = text_splitter.split_documents(docs)
-     # ✅ DEBUG PRINT — Make sure your phrase exists
-    # for i, doc in enumerate(all_splits):
-    #     print(f"[Chunk {i}]:", doc.page_content[:150])  # Print first 150 chars
+    all_splits = []
 
+    for path in pdf_paths:
+        loader = PyPDFLoader(path)
+        docs = loader.load()
+
+        # Add metadata so you know where each chunk came from
+        for doc in docs:
+            doc.metadata['source'] = os.path.basename(path)
+
+        # Split each PDF
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            add_start_index=True,
+        )
+        splits = text_splitter.split_documents(docs)
+        all_splits.extend(splits)
+
+    # Create vector store and persist
     vector_store = Chroma(
+        embedding_function=embeddings,
+        persist_directory=persist_dir
+    )
+    vector_store.add_documents(documents=all_splits)
+    print(f"[DEBUG] Indexed {len(all_splits)} chunks from {len(pdf_paths)} files.")
+
+# Step 2: Load vector store
+vector_store = Chroma(
     embedding_function=embeddings,
     persist_directory=persist_dir
-    )
-
-    vector_store.add_documents(documents=all_splits)
-    # print(f"[DEBUG] Added {len(all_splits)} documents to vector store")
-
-vector_store = Chroma(
-embedding_function=embeddings,
-persist_directory=persist_dir
 )
 
 # Pull RAG prompt
@@ -102,7 +91,9 @@ def retrieve(state: State):
 
 def generate(state: State):
     # Detect language of the user question
-    user_lang = detect(state.question)
+    # user_lang = detect(state.question)
+    user_lang = st.session_state.get("language", "en")
+
 
     # System prompt based on detected language
     if user_lang == "ne":
@@ -113,9 +104,9 @@ def generate(state: State):
         )
     else:
         system_prompt = (
-           "You are a strict legal assistant. Only use the following provided excerpts from the constitution to answer. "
-    "If the answer is not in the provided context, respond with 'I'm not sure based on the current legal documents.' "
-    "Do not use prior knowledge or make assumptions."
+           "You are a strict legal assistant.explain in details and refers secition and subsection. Only use the following provided excerpts from the constitution to answer. "
+            "If the answer is not in the provided context, respond with 'I'm not sure based on the current legal documents.' "
+            "Do not use prior knowledge or make assumptions."
         )
 
     # Format chat history
@@ -213,7 +204,18 @@ def chat_interface():
 
 
 def generate_audio(text, lang_code):
-    tts = gTTS(text=text, lang=lang_code)
+    if lang_code == "ne":
+        # Translate English answer to Nepali for speaking
+        translator = Translator()
+        try:
+            translated_text = translator.translate(text, dest='ne').text
+        except Exception as e:
+            print(f"Translation error: {e}")
+            translated_text = text  # fallback to English
+        tts = gTTS(text=translated_text, lang='ne')
+    else:
+        tts = gTTS(text=text, lang='en')
+
     tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     tts.save(tmpfile.name)
     return tmpfile.name
@@ -234,6 +236,12 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.chat_history = []
         st.rerun()
+
+    st.markdown("### 🌐 Language")
+    language_choice = st.radio("Select language for both reply and audio:", ["English", "Nepali"], index=0)
+
+    # Save to session state
+    st.session_state.language = "ne" if language_choice == "Nepali" else "en"
 
 # Display chat history
 for msg in st.session_state.messages:
@@ -278,10 +286,13 @@ if user_input := st.chat_input("Ask your legal question..."):
             
             # Step 4: Generate audio
             status.update(label="🎵 Creating audio response...")
+            
             audio_file_path = generate_audio(
-                answer_text, 
-                "ne" if tts_lang == "ne" else "en"
-            )
+            answer_text, 
+            st.session_state.language  #  this exists
+             )
+                    
+
             
             status.update(label="✅ Done!", state="complete")
 
@@ -295,9 +306,20 @@ if user_input := st.chat_input("Ask your legal question..."):
         })
         
         # Display final response
+        import time
+
         with st.chat_message("assistant"):
             st.markdown(answer_text)
-            st.audio(audio_file_path, format="audio/mp3")
+
+            # Show loading spinner before displaying audio
+            with st.spinner("🎵 Preparing audio response..."):
+                # Optional delay so user sees the spinner
+                time.sleep(1.5)  # Adjust as needed
+                if os.path.exists(audio_file_path):
+                    st.audio(audio_file_path, format="audio/mp3")
+                else:
+                    st.warning("⚠️ Audio is not ready yet. Please try again.")
+
             
     except Exception as e:
         st.error(f"Error: {str(e)}")
