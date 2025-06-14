@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -12,6 +13,11 @@ from pydantic import BaseModel, Field
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from langdetect import detect
+from gtts import gTTS
+import tempfile
+import os
+import streamlit as st
+
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +42,7 @@ embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
 # for i, doc in enumerate(all_splits):
 #     print(f"[Chunk {i}]:", doc.page_content[:150])  # Print first 150 chars
 
-    
+
 # Vector Store with persistence
 persist_dir = "./chroma_db"
 # vector_store = Chroma(
@@ -62,7 +68,7 @@ if not os.path.exists(persist_dir) or not os.listdir(persist_dir):
      # ✅ DEBUG PRINT — Make sure your phrase exists
     # for i, doc in enumerate(all_splits):
     #     print(f"[Chunk {i}]:", doc.page_content[:150])  # Print first 150 chars
-    
+
     vector_store = Chroma(
     embedding_function=embeddings,
     persist_directory=persist_dir
@@ -74,7 +80,7 @@ if not os.path.exists(persist_dir) or not os.listdir(persist_dir):
 vector_store = Chroma(
 embedding_function=embeddings,
 persist_directory=persist_dir
-)   
+)
 
 # Pull RAG prompt
 prompt = hub.pull("rlm/rag-prompt")
@@ -89,7 +95,7 @@ class State(BaseModel):
 def retrieve(state: State):
     retrieved_docs = vector_store.similarity_search(state.question, k=3)#
     print("\n[DEBUG] Retrieved Documents:\n")
-    
+
     for i, doc in enumerate(retrieved_docs, 1):
         print(f"{i}. {doc.page_content[:300]}...\n")
     return {"context": retrieved_docs}
@@ -114,7 +120,7 @@ def generate(state: State):
 
     # Format chat history
     conversation_history = "\n".join(
-        f"You: {msg['content']}" if msg['type'] == 'human' 
+        f"You: {msg['content']}" if msg['type'] == 'human'
         else f"Assistant: {msg['content']}"
         for msg in state.chat_history[-4:]
     )
@@ -147,7 +153,8 @@ Respond conversationally but accurately, citing sources when possible. Give the 
     if not response.content:
         return {
             "answer": "I couldn't generate a response. Could you rephrase your question?",
-            "chat_history": state.chat_history
+            "chat_history": state.chat_history,
+            "language": "en"  # Default to English for errors
         }
 
     return {
@@ -155,7 +162,8 @@ Respond conversationally but accurately, citing sources when possible. Give the 
         "chat_history": state.chat_history + [
             {"type": "human", "content": state.question},
             {"type": "ai", "content": response.content}
-        ]
+        ],
+        "language": user_lang
     }
 
 # Build the conversation graph
@@ -168,34 +176,34 @@ conversation_chain = graph.compile()
 
 def chat_interface():
     """Interactive chat interface"""
-    print("\n🇳🇵 Nepal Legal Assistant (Type 'quit' to exit)\n")
+    print("\nNepal Legal Assistant (Type 'quit' to exit)\n")
     print("Hello! I can help answer questions about Nepal's legal system. How can I assist you today?\n")
-    
+
     history = []
-    
+
     while True:
         try:
             user_input = input("You: ").strip()
             if user_input.lower() in ('quit', 'exit'):
                 print("\nThank you for using Satyanista. Have a great day!")
                 break
-                
+
             if not user_input:
                 print("Please enter a question.")
                 continue
-                
+
             # Process the question
             result = conversation_chain.invoke({
                 "question": user_input,
                 "chat_history": history
             })
-            
+
             # Update history
             history = result["chat_history"]
-            
+
             # Print formatted response
             print(f"\nAssistant: {result['answer']}\n")
-            
+
         except KeyboardInterrupt:
             print("\n\nSession ended by user. Goodbye!")
             break
@@ -203,5 +211,93 @@ def chat_interface():
             print(f"\nSorry, I encountered an error: {str(e)}")
             continue
 
-if __name__ == "__main__":
-    chat_interface()
+
+def generate_audio(text, lang_code):
+    tts = gTTS(text=text, lang=lang_code)
+    tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    tts.save(tmpfile.name)
+    return tmpfile.name
+
+
+# --- UI ---
+st.title("🇳🇵 Nepal E-Governance Legal Chatbot")
+st.markdown("<h5 style='color:#555;'>Your trusted assistant for constitutional and legal queries</h5>", unsafe_allow_html=True)
+
+# Initialize session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    st.session_state.chat_history = []
+
+with st.sidebar:
+    st.header("⚙️ Options")
+    if st.button("🧹 Clear Chat"):
+        st.session_state.messages = []
+        st.session_state.chat_history = []
+        st.rerun()
+
+# Display chat history
+for msg in st.session_state.messages:
+    role = "user" if msg["type"] == "human" else "assistant"
+    with st.chat_message(role):
+        st.markdown(msg["content"])
+        if role == "assistant" and "audio" in msg:
+            st.audio(msg["audio"], format="audio/mp3")
+
+# Handle user input
+if user_input := st.chat_input("Ask your legal question..."):
+    # Show user message
+    with st.chat_message("user"):
+        st.markdown(user_input)
+    
+    # Process response
+    try:
+        # Step 1: Show initial processing
+        with st.status("Processing your question...", expanded=True) as status:
+            # Create initial state
+            current_state = State(
+                question=user_input,
+                chat_history=st.session_state.chat_history
+            )
+            
+            # Step 2: Show document retrieval
+            status.update(label="🔍 Retrieving relevant documents...")
+            result = conversation_chain.invoke(current_state.dict())
+            retrieved_docs = result.get("context", [])
+            
+            # Display chunks one by one
+            status.update(label="📑 Analyzing document chunks...")
+            for i, doc in enumerate(retrieved_docs):
+                st.write(f"Analyzing chunk {i+1}...")
+                st.markdown(f"```\n{doc.page_content[:150]}...\n```")
+                time.sleep(1)  # Add slight delay for visibility
+            
+            # Step 3: Generate response
+            status.update(label="🤖 Generating response...")
+            answer_text = result["answer"]
+            tts_lang = result.get("language", "en")
+            
+            # Step 4: Generate audio
+            status.update(label="🎵 Creating audio response...")
+            audio_file_path = generate_audio(
+                answer_text, 
+                "ne" if tts_lang == "ne" else "en"
+            )
+            
+            status.update(label="✅ Done!", state="complete")
+
+        # Update chat history and display response
+        st.session_state.chat_history = result["chat_history"]
+        st.session_state.messages.append({"type": "human", "content": user_input})
+        st.session_state.messages.append({
+            "type": "ai",
+            "content": answer_text,
+            "audio": audio_file_path
+        })
+        
+        # Display final response
+        with st.chat_message("assistant"):
+            st.markdown(answer_text)
+            st.audio(audio_file_path, format="audio/mp3")
+            
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
