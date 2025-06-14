@@ -1,0 +1,100 @@
+[
+    {
+      "id": 1,
+      "name": "Advocate Ram Shrestha",
+      "specialty": "Criminal Law",
+      "location": "Kathmandu",
+      "rating": 4.8,
+      "availableSlots": ["2025-06-15T10:00", "2025-06-15T14:00"]
+    },
+    {
+      "id": 2,
+      "name": "Sita Rai",
+      "specialty": "Family Law",
+      "location": "Pokhara",
+      "rating": 4.5,
+      "availableSlots": ["2025-06-16T09:30", "2025-06-16T11:00"]
+    },
+    {
+      "id": 3,
+      "name": "Bikash Thapa",
+      "specialty": "Corporate Law",
+      "location": "Lalitpur",
+      "rating": 4.7,
+      "availableSlots": ["2025-06-17T13:00", "2025-06-17T15:00"]
+    },
+    {
+      "id": 4,
+      "name": "Mina Gurung",
+      "specialty": "Immigration Law",
+      "location": "Biratnagar",
+      "rating": 4.6,
+      "availableSlots": ["2025-06-18T10:30", "2025-06-18T12:00"]
+    },
+    {
+      "id": 5,
+      "name": "Kiran Shakya",
+      "specialty": "Intellectual Property",
+      "location": "Bhaktapur",
+      "rating": 4.4,
+      "availableSlots": ["2025-06-19T09:00", "2025-06-19T11:30"]
+    },
+    {
+      "id": 6,
+      "name": "Sunita Maharjan",
+      "specialty": "Civil Law",
+      "location": "Dharan",
+      "rating": 4.3,
+      "availableSlots": ["2025-06-20T14:00", "2025-06-20T16:00"]
+    },
+    {
+      "id": 7,
+      "name": "Ramesh Karki",
+      "specialty": "Tax Law",
+      "location": "Butwal",
+      "rating": 4.2,
+      "availableSlots": ["2025-06-21T10:00", "2025-06-21T12:00"]
+    },
+    {
+      "id": 8,
+      "name": "Anita Lama",
+      "specialty": "Environmental Law",
+      "location": "Hetauda",
+      "rating": 4.5,
+      "availableSlots": ["2025-06-22T11:00", "2025-06-22T13:00"]
+    },
+    {
+      "id": 9,
+      "name": "Dipak Bista",
+      "specialty": "Labor Law",
+      "location": "Nepalgunj",
+      "rating": 4.1,
+      "availableSlots": ["2025-06-23T09:30", "2025-06-23T11:30"]
+    },
+    {
+      "id": 10,
+      "name": "Pramila Khadka",
+      "specialty": "Property Law",
+      "location": "Janakpur",
+      "rating": 4.6,
+      "availableSlots": ["2025-06-24T10:00", "2025-06-24T12:00"]
+    },
+    {
+      "id": 11,
+      "name": "Rajendra Singh",
+      "specialty": "Banking Law",
+      "location": "Dhangadhi",
+      "rating": 4.3,
+      "availableSlots": ["2025-06-25T13:00", "2025-06-25T15:00"]
+    },
+    {
+      "id": 12,
+      "name": "Laxmi Pandey",
+      "specialty": "Human Rights Law",
+      "location": "Birgunj",
+      "rating": 4.7,
+      "availableSlots": ["2025-06-26T10:30", "2025-06-26T12:30"]
+    }
+  
+  
+]
