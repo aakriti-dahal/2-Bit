@@ -2,3 +2,4 @@
 venv/
 .env
 hack.json
+audio_cache/

@@ -306,9 +306,20 @@ if user_input := st.chat_input("Ask your legal question..."):
         })
         
         # Display final response
+        import time
+
         with st.chat_message("assistant"):
             st.markdown(answer_text)
-            st.audio(audio_file_path, format="audio/mp3")
+
+            # Show loading spinner before displaying audio
+            with st.spinner("🎵 Preparing audio response..."):
+                # Optional delay so user sees the spinner
+                time.sleep(1.5)  # Adjust as needed
+                if os.path.exists(audio_file_path):
+                    st.audio(audio_file_path, format="audio/mp3")
+                else:
+                    st.warning("⚠️ Audio is not ready yet. Please try again.")
+
             
     except Exception as e:
         st.error(f"Error: {str(e)}")
