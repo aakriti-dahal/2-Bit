@@ -175,7 +175,7 @@ def generate_audio(text, lang_code):
 
     def _generate():
         try:
-            os.makedirs("audio_cache", exist_ok=True)
+            os.makedirs("audio_cache")
             if lang_code == "ne":
                 try:
                     translated = Translator().translate(text, dest='ne').text
@@ -207,7 +207,7 @@ st.set_page_config(page_title="Nepal Legal Chatbot", page_icon="⚖️", layout=
 
 sidebar_logo()
 
-st.title("\U0001F1F3\U0001F1F5 Nepal Legal Chatbot")
+st.title("\U0001F1F3\U0001F1F5 सत्यनिष्ठ")
 st.markdown("<h5 style='color:#555;'>Your trusted assistant for legal queries</h5>", unsafe_allow_html=True)
 
 # Initialize session state variables

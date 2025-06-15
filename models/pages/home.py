@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 from utils.utils import sidebar_logo
 
-st.set_page_config(page_title="Satyanistha", layout="wide")
+st.set_page_config(page_title="सत्यनिष्ठ", layout="wide")
 
 sidebar_logo()
 
@@ -176,8 +176,8 @@ st.markdown("""
 # Hero Section
 st.markdown("""
     <div class="hero">
-        <h1>Satyanistha</h1>
-        <h3>Hajur ko Kanuni Sallahkar</h3>
+        <h1>सत्यनिष्ठ</h1>
+        <h3>हजुरको कानूनी सल्लाहकार</h3>
         <form action="" method="get">
             <button type="submit" name="chat_button">Chat With Us</button>
         </form>
