@@ -5,6 +5,7 @@ import time
 from typing import List, Optional, Dict
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from utils.utils import sidebar_logo
 
 import streamlit as st
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -202,6 +203,9 @@ def generate_audio_async(text: str, lang_code: str):
 # --- Streamlit UI ---
 
 st.set_page_config(page_title="Nepal Legal Chatbot", page_icon="⚖️", layout="wide")
+
+
+sidebar_logo()
 
 st.title("\U0001F1F3\U0001F1F5 Nepal Legal Chatbot")
 st.markdown("<h5 style='color:#555;'>Your trusted assistant for legal queries</h5>", unsafe_allow_html=True)
